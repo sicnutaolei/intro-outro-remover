@@ -11,6 +11,15 @@
                 →  批量切割（流复制，秒级，无损）→ 输出到新目录
 ```
 
+![界面（浅色主题）](docs/gui-ready.png)
+
+<details>
+<summary>深色主题的样子</summary>
+
+![界面（深色主题）](docs/gui-dark.png)
+
+</details>
+
 ---
 
 ## 一、先装两个外部工具
@@ -48,6 +57,10 @@ ffprobe -version
 ```
 
 不想配 PATH 也行 —— 界面上有一栏「ffmpeg 目录」，指到 `bin` 目录（或者它的上一级）即可。
+
+没装齐之前顶栏会红着，缺什么它直接说：
+
+![没装 ffmpeg 时的提示](docs/gui-ffmpeg-missing.png)
 
 ### 2. needle（想用自动检测就需要）
 
@@ -326,8 +339,11 @@ intro-outro-remover/
 ├── tools/
 │   ├── make_test_clips.sh         # 合成测试素材（4 集带公共片头片尾）
 │   ├── check-needle-lib.sh        # 不开 needle-lib 也能检查它的编译
+│   ├── check_exe_deps.py          # 查 exe 的导入表，确认没依赖 VC++ 运行库
 │   └── needle-api-stub/           # 上面那个脚本用的 needle-rs API 桩，不参与构建
+├── .cargo/config.toml             # 让发布产物静态链接 C 运行库（见「二、构建」）
 ├── docs/                          # 实机验收截图
+├── LICENSE
 └── README.md
 ```
 
@@ -366,4 +382,4 @@ intro-outro-remover/
 
 ## 七、许可
 
-MIT。
+[MIT](LICENSE)。

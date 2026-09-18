@@ -1,0 +1,40 @@
+# needle-rs 的 API stub，**不是项目的一部分，也不参与正常构建**。
+# 它只有一个用途：让 `--features needle-lib` 那条路径能被编译器检查一遍。
+# 用法见 tools/check-needle-lib.sh。
+#
+# 为什么需要它：真的 needle-rs 依赖 ffmpeg-sys-next（要 pkg-config +
+# FFmpeg 开发库）和 chromaprint-sys-next（要 cmake 从源码编译），多数机器上
+# 装不齐。而 `detect/needle_lib.rs` 和 `worker.rs` 里对应的分支都是
+# `#[cfg(feature = "needle-lib")]` 门控的 —— 平时根本不参与类型检查，
+# 那几百行代码从来没被编译器看过一眼，最容易藏错：参数个数不对、类型不对、
+# 字段可见性不对，全都不会报错，直到有人在装齐依赖的机器上第一次开这个 feature。
+#
+# 换成这个 stub 之后，`cargo check --features needle-lib` 就能真正把它们
+# 编译一遍。stub 里每个签名都是从上游对应提交的源码**逐字抄**的，
+# 连泛型约束（`P: AsRef<Path>` / `+ Sync`）都照抄 —— 放宽任何一处，
+# 这个检查就失去意义了。
+
+[package]
+name = "needle-rs"
+version = "0.1.5"
+edition = "2021"
+publish = false
+
+# 空的 [workspace] 是必须的：本目录在项目 workspace 树内，而项目根 Cargo.toml
+# 的 members 里没有它。不加这一段，cargo 会报「current package believes
+# it's in a workspace when it's not」。声明成自己的 workspace 根即可 opt out。
+[workspace]
+
+[lib]
+name = "needle"
+path = "src/lib.rs"
+
+# feature 名要与上游一致：core 的 `needle-static = ["needle-lib", "needle/static"]`
+# 会引用 `needle/static`，名字对不上 cargo 会在解析阶段就报错。
+[features]
+default = ["rayon", "static-chromaprint"]
+rayon = []
+static-chromaprint = []
+static-ffmpeg = []
+static-ffmpeg-build = []
+static = ["static-chromaprint", "static-ffmpeg"]

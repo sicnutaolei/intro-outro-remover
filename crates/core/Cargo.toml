@@ -1,0 +1,38 @@
+[package]
+name = "intro-outro-core"
+description = "电视剧片头片尾批量去除工具的核心引擎（无 GUI 依赖）"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+# 可选：直接链接 needle-rs，而不是子进程调用 needle CLI。
+#
+# 关于 git 依赖：aksiksi/needle 仓库根目录**没有** Cargo.toml（不是 workspace），
+# 包在 needle/ 子目录里，所以必须写 `package = "needle-rs"` 让 cargo 去仓库里
+# 按包名定位。
+#
+# **一定要带 `rev`。** 上游 main 的公开 API 是会变的（实测 `Analyzer::run` 的
+# 参数个数、`with_include_endings` 的有无、`SearchResult` 的字段都动过），
+# 不加 `rev` 就是跟默认分支 HEAD，上游一动这边就可能编不过；而且同一份
+# Cargo.toml 在不同时间会解析出不同代码，没法复现。下面的哈希是本项目
+# **实际对照并验证过**的提交。
+needle = { git = "https://github.com/aksiksi/needle", rev = "1e6f92e14aebb797cc2a2a3014c8efcb3cccad9c", package = "needle-rs", optional = true }
+
+[features]
+default = []
+# 直接链接 needle-rs 库（默认走子进程，不开这个 feature）
+needle-lib = ["dep:needle"]
+# 透传给 needle-rs：静态链接 FFmpeg 与 chromaprint。
+# 注意这在 Windows 上会触发 cargo-vcpkg 从源码编译 FFmpeg，构建时间以小时计。
+needle-static = ["needle-lib", "needle/static"]
+
+[dev-dependencies]
+# 单元测试用，不参与发布
+tempfile = "3"

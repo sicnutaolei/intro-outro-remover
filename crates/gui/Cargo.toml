@@ -1,0 +1,22 @@
+[package]
+name = "intro-outro-gui"
+description = "电视剧片头片尾批量去除工具（egui 桌面界面）"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+intro-outro-core = { path = "../core" }
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+eframe.workspace = true
+egui.workspace = true
+egui-file-dialog.workspace = true
+image.workspace = true
+
+[features]
+default = []
+# 把库后端的选择暴露给 GUI（需 core 的 needle-lib，构建很重，默认关）
+needle-lib = ["intro-outro-core/needle-lib"]

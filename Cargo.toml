@@ -1,0 +1,41 @@
+# 电视剧片头片尾批量去除工具 —— Cargo workspace 根
+#
+# 分两个 crate：
+#   crates/core  —— 核心引擎（不依赖任何 GUI 库，可被未来的 CLI 复用）
+#   crates/gui   —— egui 桌面应用
+#
+# 统一在 workspace 层声明依赖版本，避免两个 crate 各自漂移。
+
+[workspace]
+resolver = "2"
+members = ["crates/core", "crates/gui"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "电视剧片头片尾批量去除工具"
+
+[workspace.dependencies]
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# GUI 侧。egui-file-dialog 0.15 的 Cargo.toml 里硬约束了 egui = "0.36.0"，
+# 所以这三个必须同代，不能各自升版本。
+#
+# eframe 用默认特性：默认就带 glow 渲染后端和 egui 自带字体，跨平台不用手挑
+# winit 后端。不需要持久化，所以不开 persistence。
+eframe = "0.36"
+egui = "0.36"
+egui-file-dialog = "0.15"
+# 只为了把 ffmpeg 抽出来的 PNG 解码成纹理。默认特性会拉一堆编解码器，
+# 这里只要 png，能省掉不少编译时间。
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[profile.release]
+lto = "thin"
+strip = true

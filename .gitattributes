@@ -1,0 +1,21 @@
+# 统一换行符：仓库里一律 LF，检出到工作区也一律 LF。
+#
+# 不加这个文件的话，本机全局 `core.autocrlf=true` 会让 git 在检出时把 LF 变成
+# CRLF。对 .rs 无害，但 tools/ 下那两个 shell 脚本拿到 Linux 上会直接报
+#   /usr/bin/env: 'bash\r': No such file or directory
+# 而且报错信息完全看不出是换行符的问题，非常难查。
+#
+# 这个项目要跨 Windows（写代码）与 Linux（飞牛 NAS / Docker）两边用，
+# 所以不依赖使用者本地的 autocrlf 设置，直接在仓库层面定死。
+
+* text=auto eol=lf
+
+# 二进制，别做任何转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+
+# Windows 批处理反过来必须是 CRLF，否则 cmd.exe 解析会出怪问题
+*.bat text eol=crlf
+*.cmd text eol=crlf

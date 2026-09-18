@@ -28,7 +28,7 @@
 
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, Sender};
 
 use eframe::egui;
 use egui_file_dialog::FileDialog;
@@ -293,7 +293,10 @@ pub struct App {
 
     // ---- 运行时 ----
     busy: Busy,
-    rx: Option<Receiver<WorkerMessage>>,
+    /// 后台任务的 Sender 模板，每个任务克隆一份
+    tx: Sender<WorkerMessage>,
+    /// 全程序唯一的消息接收端，与 `App` 同生命周期
+    rx: Receiver<WorkerMessage>,
     cancel: CancelFlag,
     stage: String,
     /// （当前, 总数）
@@ -328,8 +331,12 @@ impl App {
             .title("选择输出目录");
 
         let ctx = cc.egui_ctx.clone();
+        // 整程序只有这一条消息通道，Receiver 从头留到尾；每个后台任务拿一个
+        // Sender 克隆。绝不能像早先那样「每起一个任务就换一条通道」—— 那会把
+        // 上一个任务的接收端丢掉，它对应的界面状态就永远等不到人来清。
+        let (tx, rx) = worker::message_channel();
         // 工具检查要 spawn 进程，放后台跑，别卡住窗口首帧
-        let rx = worker::spawn_check_tools(ctx.clone(), None, None);
+        worker::spawn_check_tools(ctx.clone(), None, None, tx.clone());
 
         Self {
             ctx,
@@ -351,7 +358,8 @@ impl App {
             overwrite: false,
             cut_mode: CutMode::Fast,
             busy: Busy::Idle,
-            rx: Some(rx),
+            tx,
+            rx,
             cancel: new_cancel_flag(),
             stage: String::new(),
             counter: (0, 0),
@@ -375,9 +383,8 @@ impl App {
     /// 用 `try_recv` 循环而不是只取一条：一帧里可能堆了好几条，逐帧只取一条
     /// 会让日志和进度明显滞后。
     fn drain_messages(&mut self, ctx: &egui::Context) {
-        let Some(rx) = &self.rx else { return };
         let mut received = Vec::new();
-        while let Ok(msg) = rx.try_recv() {
+        while let Ok(msg) = self.rx.try_recv() {
             received.push(msg);
         }
         for msg in received {
@@ -786,12 +793,13 @@ impl App {
         );
         self.busy = Busy::Probing;
         self.cancel = new_cancel_flag();
-        self.rx = Some(worker::spawn_probe(
+        worker::spawn_probe(
             self.ctx.clone(),
             tools,
             fresh,
             self.cancel.clone(),
-        ));
+            self.tx.clone(),
+        );
     }
 
     /// 检测后端在界面上的显示名。
@@ -838,13 +846,14 @@ impl App {
         self.cancel = new_cancel_flag();
         self.counter = (0, files.len());
         self.progress = 0.0;
-        self.rx = Some(worker::spawn_detect(
+        worker::spawn_detect(
             self.ctx.clone(),
             detector,
             files,
             self.detect_opts.clone(),
             self.cancel.clone(),
-        ));
+            self.tx.clone(),
+        );
     }
 
     fn start_cut(&mut self) {
@@ -901,14 +910,15 @@ impl App {
                 self.cut_mode.label()
             ),
         );
-        self.rx = Some(worker::spawn_cut(
+        worker::spawn_cut(
             self.ctx.clone(),
             cutter,
             tasks,
             self.cut_mode,
             self.overwrite,
             self.cancel.clone(),
-        ));
+            self.tx.clone(),
+        );
     }
 
     fn request_preview(&mut self, index: usize) {
@@ -925,13 +935,7 @@ impl App {
 
         let video = row.task.file.path.clone();
         let at = row.preview_time();
-        self.rx = Some(worker::spawn_preview(
-            self.ctx.clone(),
-            cutter,
-            video,
-            at,
-            index,
-        ));
+        worker::spawn_preview(self.ctx.clone(), cutter, video, at, index, self.tx.clone());
     }
 }
 
@@ -1237,7 +1241,7 @@ impl App {
                 let ff = non_empty(&self.ffmpeg_dir);
                 let nd = non_empty(&self.needle_dir);
                 self.status_line = "正在重新检查工具…".to_string();
-                self.rx = Some(worker::spawn_check_tools(ui.ctx().clone(), ff, nd));
+                worker::spawn_check_tools(ui.ctx().clone(), ff, nd, self.tx.clone());
             }
         });
     }

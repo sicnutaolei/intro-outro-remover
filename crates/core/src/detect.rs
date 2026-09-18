@@ -31,9 +31,15 @@
 //!
 //! `Comparator::run(analyze = true, ...)` 内部这样构造分析器：
 //!
-//! ```ignore
+//! ```text
 //! let analyzer = Analyzer::<&Path>::default().with_force(true);
 //! ```
+//!
+//! 这个片段是**上游 needle 的代码**，不是本项目的 —— 所以围栏用 `text` 而不是
+//! `rust`：`Analyzer`/`Path` 在本 crate 里根本不存在（`needle` 还是可选依赖），
+//! 写成可编译的围栏会得到一个编译不过的 doctest。也别退回 `ignore`：
+//! `cargo test --workspace -- --ignored`（跑 e2e 时常用的那条命令）会把 `ignore`
+//! 的 doctest 也拖出来编译，于是整条命令无端报 FAILED。实测踩过这个坑。
 //!
 //! `with_force(true)` 意味着它**无视**磁盘上已有的 `.needle.dat`，当场重算。
 //! 于是这一步既是不可取消、没有逐集进度的黑盒，又把我们刚逐集算好的缓存白扔了。

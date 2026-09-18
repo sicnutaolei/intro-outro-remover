@@ -99,6 +99,34 @@ cargo build --release
 默认这条路**没有任何原生依赖**，不需要 cmake、不需要 FFmpeg 开发库，
 第一次构建大概一两分钟（要下载并编译 egui 那一堆依赖）。
 
+### 打包发给别人之前：确认 C 运行库是静态链接的
+
+仓库里的 `.cargo/config.toml` 已经替你设好了：
+
+```toml
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]
+```
+
+**为什么需要它**：MSVC 工具链默认**动态**链接 C 运行库，产物的导入表里会出现
+`VCRUNTIME140.dll`。这个文件**不是** Windows 自带的 —— 系统只自带 UCRT
+（`ucrtbase.dll` 和 `api-ms-win-crt-*.dll`），`VCRUNTIME140.dll` 属于
+「Microsoft Visual C++ 2015-2022 可再发行组件包」。于是在装了 VC++ 运行库的机器上
+一切正常，换到干净的 Win10/11 上双击就会弹「找不到 VCRUNTIME140.dll」，程序起不来。
+加上这个 flag 之后导入表里只剩系统自带的 DLL，exe 才真的能当单文件分发。
+
+发版前核一遍（只用 Python 标准库，不用装任何东西）：
+
+```bash
+python tools/check_exe_deps.py target/release/intro-outro-gui.exe
+```
+
+它直接解析 PE 导入表，而不是在二进制里 grep `dll` 字符串 —— 后者会命中依赖库留下的
+一大堆根本没被导入的名字，判断不了真假。输出里出现 `VCRUNTIME140.dll` 就是还没静态链接。
+
+代价：改 rustflags 等于换了一套编译参数，已有的构建缓存会失效，需要全量重编一次
+（本机约 11 分钟）。
+
 ### 换个检测后端（可选，构建很重）
 
 默认的检测后端是「子进程调用 needle 可执行文件」。如果你想改成

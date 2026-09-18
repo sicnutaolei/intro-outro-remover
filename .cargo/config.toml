@@ -1,0 +1,15 @@
+# 让发布出来的 exe 在「什么都没装过的 Windows」上双击就能跑。
+#
+# 背景：MSVC 工具链默认**动态**链接 C 运行库，产物的导入表里有 VCRUNTIME140.dll。
+# 这个文件**不是** Windows 自带的 —— 系统只自带 UCRT（ucrtbase.dll 与
+# api-ms-win-crt-*.dll），VCRUNTIME140.dll 属于「Microsoft Visual C++ 2015-2022
+# 可再发行组件包」。所以在装了 VC++ 运行库的机器上跑得好好的 exe，
+# 换到干净的 Win10/11 上双击会直接弹「找不到 VCRUNTIME140.dll」，程序根本起不来。
+#
+# 加上 +crt-static 之后导入表里只剩系统自带的 DLL，exe 才真的能单文件分发。
+# 代价是体积略增，以及改这个文件会让已有的构建缓存失效（需要全量重编一次）。
+#
+# 用 target 段而不是 [build]：这样在 Linux/macOS 上构建完全不受影响，
+# 用 cfg 而不是写死 x86_64，是为了 aarch64-windows-msvc 也一并覆盖。
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]
